@@ -1,0 +1,4 @@
+from glossary.Glossary import Glossary
+from glossary.glossaries.pretty_glossary import pretty_core
+
+glossary = Glossary(pretty_core)
