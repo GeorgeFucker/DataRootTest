@@ -1,4 +1,7 @@
-from glossary.Glossary import Glossary
-from glossary.glossaries.pretty_glossary import pretty_core
+from glossary import Glossary
+from glossary.glossaries import pretty_core
 
-glossary = Glossary(pretty_core)
+gl = Glossary(pretty_core)
+
+gl.tags_to_csv('tags.csv')
+gl.links_to_csv('links.csv')

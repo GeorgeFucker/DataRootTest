@@ -6,10 +6,12 @@ import pandas as pd
 
 class Glossary(dict):
 
-    def __init__(self, dictionary={}):
+    def __init__(self, dictionary=None):
         """Create glossary instance using existing dictionary or json file"""
 
-        # if we have json file 
+        if dictionary is None:
+            dictionary = {}
+        # if we have json file
         if not isinstance(dictionary, dict):
             with open(dictionary) as json_data:
                 dictionary = json.load(json_data)
@@ -20,12 +22,13 @@ class Glossary(dict):
         self._create_tags(dictionary)
 
     def __setitem__(self, key, value):
-        key = key.lower().lstrip().rstrip()
+        key = self._normalize(key)
         super(Glossary, self).__setitem__(key, value)
         self._add_tag(key)
 
     def __delitem__(self, key):
-        temp = self._create_tags(self[key])
+        temp = Glossary()
+        temp._create_tags(key)
 
         for key, value in temp.items():
             self.tags_num[key] -= value
@@ -55,12 +58,12 @@ class Glossary(dict):
     def get_path(self, tag):
         """Function that return path to the tag"""
 
-        def _get(tag, dictionary):
+        def _get(tag_r, dictionary):
             """To make function recursive"""
 
             for key, value in dictionary.items():
-                if tag == key:
-                    path.append(tag)
+                if tag_r == key:
+                    path.append(tag_r)
                     temp_path = "".join(map(lambda x: '["' + x + '"]', path))
                     paths.append(temp_path)
                     path.pop()
@@ -68,7 +71,7 @@ class Glossary(dict):
                     continue
                 else:
                     path.append(key)
-                    _get(tag, value)
+                    _get(tag_r, value)
                     if path:
                         path.pop()
 
@@ -172,7 +175,7 @@ class Glossary(dict):
         tags.extend(sorted(self.tags))
 
         if normalize:
-            tags = list(map(self._normalize, tags))
+            tags = sorted(list(set(map(self._normalize, tags))))
 
         return pd.DataFrame(tags, columns=['tag'])
 
@@ -182,13 +185,20 @@ class Glossary(dict):
         # Create dictionary for future dataframe
         links = dict(tag_id=[], parent_id=[], child_id=[])
 
-        # Get ids
-        ids = self._tags_to_df(False)
+        # Get ids and ids for
+        ids = self._tags_to_df(normalize)
 
         for tag in sorted(self.tags):
 
+            # Get parents and children
             parents = self.get_parent(tag)
             children = self.get_children(tag)
+
+            # Get normalized version of parents and children
+            if normalize:
+                tag = self._normalize(tag)
+                parents = list(map(lambda x: self._normalize(x) if x else x, parents))
+                children = list(map(lambda x: list(map(lambda y: self._normalize(y), x)), children))
 
             # For each tag we have one parent and several children
             for parent, childs in zip(parents, children):
@@ -196,7 +206,8 @@ class Glossary(dict):
                 num = len(childs) + (len(childs) == 0)
 
                 # If we do not have parent assign it to 'None'
-                parent = 'None' if not parent else parent.lower().strip()
+                if not parent:
+                    parent = '' if normalize else 'None'
 
                 # Get tag and parent ids
                 tag_id = ids[ids.tag == tag].index[0]
@@ -205,14 +216,15 @@ class Glossary(dict):
                 childs_id = []
                 for child in childs:
                     # If we do not have child -> assign to 'None'
-                    child = 'None' if not child else child.lower().strip()
+                    if not child:
+                        child = '' if normalize else 'None'
 
                     child_id = ids[ids.tag == child].index[0]
                     childs_id.append(child_id)
 
                 # If we do not have any child -> assign to ['None']
                 if not childs_id:
-                    childs_id = ['None']
+                    childs_id = [''] if normalize else ['None']
 
                 # Append appropriate number of tag, parent ids w.r.t number of children
                 links['tag_id'].extend([tag_id] * num)
@@ -227,10 +239,10 @@ class Glossary(dict):
         df = self._tags_to_df(normalize)
         df.to_csv(path_or_buf=path_or_buf, sep=sep)
 
-    def links_to_csv(self, path_or_buf=None, sep=','):
+    def links_to_csv(self, path_or_buf=None, sep=',', normalize=True):
         """Create csv file of links dataframe"""
 
-        df = self._links_to_df()
+        df = self._links_to_df(normalize)
         df.to_csv(path_or_buf=path_or_buf, sep=sep)
 
     def pretty_print(self, indent=1):
@@ -258,6 +270,3 @@ if __name__ == '__main__':
     from glossary.glossaries.pretty_glossary import pretty_core
 
     glossary = Glossary(pretty_core)
-    glossary.tags_to_csv('C:\\Users\\Никич\\PycharmProjects\\DataRoot\\data\\ids.csv')
-    glossary.links_to_csv('C:\\Users\\Никич\\PycharmProjects\\DataRoot\\data\\links.csv')
-
