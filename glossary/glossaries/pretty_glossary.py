@@ -619,7 +619,7 @@ pretty_core = {"artificial intelligence": {"ai_and_the_future": {"artificial gen
                                                                                                                                                                                                "taxonomy for search engines": {}}},
                                                                                                                                                                      "textual entailment": {},
                                                                                                                                                                      "triphone": {},
-                                                                                                                                                                     "n-gram ": {"bigram": {},
+                                                                                                                                                                     "n-gram": {"bigram": {},
                                                                                                                                                                                  "trigram": {}}},
                                                                                                                   "related to nlp fields": {"automated reasoning": {},
                                                                                                                                             "human–computer interaction": {},
