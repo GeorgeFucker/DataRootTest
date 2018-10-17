@@ -647,7 +647,7 @@ pretty_core = {"artificial intelligence": {"ai_and_the_future": {"artificial gen
                                                                                                                                                             "sign linguistics": {}},
                                                                                                                                             "machine learning": {"pattern recognition": {},
                                                                                                                                                                  "statistical classification": {}}},
-                                                                                                                  "subfields of natural language processing": {"information extraction": {" relationship extraction": {},
+                                                                                                                  "subfields of natural language processing": {"information extraction": {"relationship extraction": {},
                                                                                                                                                                                           "coreference resolution": {},
                                                                                                                                                                                           "named entity recognition": {}},
                                                                                                                                                                "ontology engineering": {},
