@@ -1,9 +1,25 @@
-from matcher import Matcher
+from matcher import Matcher, DBInterface
 from textacy.keyterms import sgrank
 
-matcher = Matcher(url='https://en.wikipedia.org/wiki/Support_vector_machine')
+tag = None
 
-matcher.preprocess()
-matcher.extract_keyphrases(algorithm=sgrank, n=20, ngrams=(2, 3))
+GET_ALL_TAGS_NAMES_CMD = 'SELECT name FROM public.tags'
 
-print(matcher.keyphrases)
+
+if __name__ == '__main__':
+
+    create_cmd = lambda tag: 'SELECT parent_id FROM public.links' \
+                             'WHERE tag_id = {}'.format(tag)
+
+    url = 'https://en.wikipedia.org/wiki/Feature_engineering'
+
+    db = DBInterface(dbname='postgres', user='postgres')
+    tags = db.fetchall(GET_ALL_TAGS_NAMES_CMD)
+
+    matcher = Matcher(url=url)
+
+    matcher.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
+    matcher.extract_keyphrases(algorithm=sgrank, n=20, ngrams=(1, 2, 3), normalize='lemma')
+
+    categories = matcher(tags=tags)
+    print(categories)

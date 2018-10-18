@@ -44,3 +44,14 @@ class DBInterface:
 
         self.execute(cmd)
         yield self.cursor.fetchmany(size)
+
+    def commit(self):
+        """ Commit changes in db """
+
+        self.conn.commit()
+
+    def disconnect(self):
+        """ Close communication with the database """
+
+        self.cursor.close()
+        self.conn.close()

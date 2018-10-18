@@ -6,6 +6,7 @@ import textacy.keyterms as tkt
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
+from textacy import similarity
 
 
 class Matcher:
@@ -20,10 +21,10 @@ class Matcher:
         else:
             self.set_text(text)
 
-    def set_text(self, text):
-        """ Set text to the instance """
+    def __call__(self, tags, distance='hamming', threshold=0.7, **kwargs):
+        """ Call match function """
 
-        self.text = text
+        return self.match(tags, distance, threshold, **kwargs)
 
     def parse(self, url):
         """ Get text from url """
@@ -77,4 +78,29 @@ class Matcher:
 
         doc = textacy.Doc(self.text, lang='en')
         self.keyphrases = list(algorithm(doc, **kwargs)[:n])
+
+    def distance(self, str1, str2, distance='hamming', **kwargs):
+        """ Measure the similar between two strings using """
+
+        if isinstance(distance, str):
+            distance = eval('similarity.{}'.format(distance))
+
+        return distance(str1, str2, **kwargs)
+
+    def match(self, tags, distance='hamming', threshold=0.7, **kwargs):
+        """ Match all tags that are similar
+            **kwargs -> parameters for similarity function
+        """
+
+        categories = []
+
+        for keyphrase in self.keyphrases:
+            for tag in tags:
+                d = self.distance(keyphrase[0], tag, distance=distance, **kwargs)
+                if d > threshold:
+                    categories.append((tag, d))
+
+        return categories
+
+
 
