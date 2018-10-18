@@ -1,7 +1,9 @@
-from glossary import Glossary
-from glossary.glossaries import pretty_core
+from matcher import Matcher
+from textacy.keyterms import sgrank
 
-gl = Glossary(pretty_core)
+matcher = Matcher(url='https://en.wikipedia.org/wiki/Support_vector_machine')
 
-gl.tags_to_csv('tags.csv')
-gl.links_to_csv('links.csv')
+matcher.preprocess()
+matcher.extract_keyphrases(algorithm=sgrank, n=20, ngrams=(2, 3))
+
+print(matcher.keyphrases)
