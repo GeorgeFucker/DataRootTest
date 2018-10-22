@@ -68,23 +68,42 @@ class Categorizer:
                 if d > threshold:
                     self.matches.append((tag, d))
 
-    def get_parents(self, tag):
-        """ Find 'n' parent of the tag"""
 
-        if isinstance(tag, str):
-            tag = self.tag_to_id[tag]
-
-        if tag and (tag not in self.parent[tag]):
-
-            parents = self.parent[tag]
-            for parent in parents:
-                self.categories.add(self.id_to_tag[parent])
-
-    def categorize(self):
+    def categorize(self, depth=2, macro_ctg=None, micro_ctg=None):
         """ Find all parents and create possible categories """
 
-        matches = [matche for matche, _ in self.matches]
+        start_depth = depth
+
+        def get_parents(tag):
+            """ Find 'n' parent of the tag"""
+
+            nonlocal depth
+            depth = depth - 1
+
+            if depth == 0:
+                return
+
+            if isinstance(tag, str):
+                tag = self.tag_to_id[tag]
+
+            if tag:
+
+                parents = self.parent[tag] - self.categories
+                for parent in parents:
+                    self.categories.add(parent)
+                    get_parents(parent)
+
+        matches = [self.tag_to_id[match] for match, _ in self.matches]
         self.categories.update(matches)
 
         for tag, _ in self.matches:
-            self.get_parents(tag)
+            get_parents(tag)
+            depth = start_depth
+
+        self.categories = {self.id_to_tag[category] for category in self.categories}
+
+        if macro_ctg:
+            self.macro_ctg = set(macro_ctg).intersection(self.categories)
+
+        if micro_ctg:
+            self.micro_ctg = set(micro_ctg).intersection(self.categories)

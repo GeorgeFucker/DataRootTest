@@ -6,6 +6,15 @@ tag = None
 GET_ALL_TAGS_NAMES_CMD = 'SELECT * FROM tags;'
 GET_ALL_LINKS_CMD = 'SELECT * FROM links;'
 
+macro = ['artificial intelligence','deep learning','computer vision','object recognition',
+         'natural language processing','machine learning']
+
+micro = ['perceptron','genetic algorithm','tensorflow','feature extraction','natural language understanding',
+         'natural language generation','chatterbot','recurrent neural network rnn','convolutional neural network',
+         'long short term memory lstm', 'data mining','recommendation system','pytorch','caffe','scikit learn',
+         'machine learn algorithm','regularization algorithm','classifier','dimensionality reduction',
+         'ensemble learning','reinforcement learning','supervised learning','decision tree algorithm',
+         'bayesian','unsupervised learning','semi supervised learning']
 
 if __name__ == '__main__':
 
@@ -23,8 +32,12 @@ if __name__ == '__main__':
 
     categorizer = Categorizer(tags=tags, keyphrases=keyphrases, links=links)
 
-    categorizer()
+    categorizer.match()
+
+    categorizer.categorize(macro_ctg=macro, micro_ctg=micro)
 
     print(categorizer.categories)
+    print(categorizer.macro_ctg)
+    print(categorizer.micro_ctg)
 
 
