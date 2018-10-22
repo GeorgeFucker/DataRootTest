@@ -6,10 +6,10 @@ import textacy.keyterms as tkt
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
-from textacy import similarity
 
 
-class Matcher:
+
+class Extractor:
 
     def __init__(self, text=None, url=None):
         """ Create instance of Matcher with text """
@@ -66,7 +66,7 @@ class Matcher:
             filtered_sentence = [w for w in word_tokens if w not in stop_words]
             self.text = ' '.join(filtered_sentence)
 
-    def extract_keyphrases(self, algorithm, n=20, **kwargs):
+    def extract_keyphrases(self, algorithm, **kwargs):
         """ Method for extracting keyphrases from text
             algorithm takes 'str' object -> get function using eval
                            'func' object
@@ -77,30 +77,6 @@ class Matcher:
             algorithm = eval('tkt.{}'.format(algorithm))
 
         doc = textacy.Doc(self.text, lang='en')
-        self.keyphrases = list(algorithm(doc, **kwargs)[:n])
-
-    def distance(self, str1, str2, distance='hamming', **kwargs):
-        """ Measure the similar between two strings using """
-
-        if isinstance(distance, str):
-            distance = eval('similarity.{}'.format(distance))
-
-        return distance(str1, str2, **kwargs)
-
-    def match(self, tags, distance='hamming', threshold=0.7, **kwargs):
-        """ Match all tags that are similar
-            **kwargs -> parameters for similarity function
-        """
-
-        categories = []
-
-        for keyphrase in self.keyphrases:
-            for tag in tags:
-                d = self.distance(keyphrase[0], tag, distance=distance, **kwargs)
-                if d > threshold:
-                    categories.append((tag, d))
-
-        return categories
-
+        return list(algorithm(doc, **kwargs))
 
 

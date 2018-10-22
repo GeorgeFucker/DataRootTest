@@ -1,25 +1,30 @@
-from matcher import Matcher, DBInterface
-from textacy.keyterms import sgrank
+from matcher import Extractor, DBInterface, Categorizer
+from textacy.keyterms import sgrank, key_terms_from_semantic_network, singlerank, textrank
 
 tag = None
 
-GET_ALL_TAGS_NAMES_CMD = 'SELECT name FROM public.tags'
+GET_ALL_TAGS_NAMES_CMD = 'SELECT * FROM tags;'
+GET_ALL_LINKS_CMD = 'SELECT * FROM links;'
 
 
 if __name__ == '__main__':
 
-    create_cmd = lambda tag: 'SELECT parent_id FROM public.links' \
-                             'WHERE tag_id = {}'.format(tag)
-
-    url = 'https://en.wikipedia.org/wiki/Feature_engineering'
+    url = 'https://medium.com/s/story/spotifys-discover-weekly-how-machine-learning-finds-your-new-music-19a41ab76efe'
 
     db = DBInterface(dbname='postgres', user='postgres')
     tags = db.fetchall(GET_ALL_TAGS_NAMES_CMD)
+    links = db.fetchall(GET_ALL_LINKS_CMD)
 
-    matcher = Matcher(url=url)
+    extractor = Extractor(url=url)
 
-    matcher.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
-    matcher.extract_keyphrases(algorithm=sgrank, n=20, ngrams=(1, 2, 3), normalize='lemma')
+    extractor.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
 
-    categories = matcher(tags=tags)
-    print(categories)
+    keyphrases = extractor.extract_keyphrases(algorithm=sgrank, ngrams=(1, 2, 3), window_width=1200)
+
+    categorizer = Categorizer(tags=tags, keyphrases=keyphrases, links=links)
+
+    categorizer()
+
+    print(categorizer.categories)
+
+
