@@ -19,7 +19,7 @@ class Extractor:
         if url:
             self.parse(url)
         else:
-            self.set_text(text)
+            self.text = text
 
     def __call__(self, tags, distance='hamming', threshold=0.7, **kwargs):
         """ Call match function """

@@ -1,7 +1,9 @@
 from matcher import Extractor, DBInterface, Categorizer
-from textacy.keyterms import sgrank, key_terms_from_semantic_network, singlerank, textrank
+from textacy.keyterms import sgrank, key_terms_from_semantic_network, singlerank, textrank, aggregate_term_variants
 
 tag = None
+
+DEPTH = 2
 
 GET_ALL_TAGS_NAMES_CMD = 'SELECT * FROM tags;'
 GET_ALL_LINKS_CMD = 'SELECT * FROM links;'
@@ -18,26 +20,32 @@ micro = ['perceptron','genetic algorithm','tensorflow','feature extraction','nat
 
 if __name__ == '__main__':
 
-    url = 'https://medium.com/s/story/spotifys-discover-weekly-how-machine-learning-finds-your-new-music-19a41ab76efe'
+    urls = ['https://medium.com/s/story/spotifys-discover-weekly-how-machine-learning-finds-your-new-music-19a41ab76efe',
+            'https://en.wikipedia.org/wiki/Support_vector_machine',
+            'https://blog.openai.com/language-unsupervised/',
+            'https://www.analyticsvidhya.com/blog/2018/10/introduction-neural-networks-deep-learning/']
 
     db = DBInterface(dbname='postgres', user='postgres')
     tags = db.fetchall(GET_ALL_TAGS_NAMES_CMD)
     links = db.fetchall(GET_ALL_LINKS_CMD)
 
-    extractor = Extractor(url=url)
+    for url in urls:
+        extractor = Extractor(url=url)
 
-    extractor.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
+        extractor.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
 
-    keyphrases = extractor.extract_keyphrases(algorithm=sgrank, ngrams=(1, 2, 3), window_width=1200)
+        keyphrases = extractor.extract_keyphrases(algorithm=sgrank, ngrams=(1, 2, 3), window_width=1200)
 
-    categorizer = Categorizer(tags=tags, keyphrases=keyphrases, links=links)
+        categorizer = Categorizer(tags=tags, keyphrases=keyphrases, links=links)
 
-    categorizer.match()
+        categorizer.match(threshold=0.9)
 
-    categorizer.categorize(macro_ctg=macro, micro_ctg=micro)
+        categorizer.categorize(depth=DEPTH, macro_ctg=macro, micro_ctg=micro)
 
-    print(categorizer.categories)
-    print(categorizer.macro_ctg)
-    print(categorizer.micro_ctg)
-
+        print('Article:\n{}\n'.format(url))
+        print('All matches:\n {}\n'.format(categorizer.matches))
+        print('All possible categories in depth {}:\n {}\n'.format(DEPTH, categorizer.categories))
+        print('Macro categories provided by Vitaliy:\n {}\n'.format(categorizer.macro_ctg))
+        print('Micro categories provided by Vitaliy:\n {}\n'.format(categorizer.micro_ctg))
+        print('\n\n\n')
 
