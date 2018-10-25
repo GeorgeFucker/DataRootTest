@@ -1,51 +1,26 @@
-from matcher import Extractor, DBInterface, Categorizer
-from textacy.keyterms import sgrank, key_terms_from_semantic_network, singlerank, textrank, aggregate_term_variants
+from matcher import Tagger, DBInterface
 
 tag = None
 
-DEPTH = 2
-
 GET_ALL_TAGS_NAMES_CMD = 'SELECT * FROM tags;'
-GET_ALL_LINKS_CMD = 'SELECT * FROM links;'
 
-macro = ['artificial intelligence','deep learning','computer vision','object recognition',
-         'natural language processing','machine learning']
+NGRAMS = (1, 2, 3)
+WINDOW_WIDTH = 1200
 
-micro = ['perceptron','genetic algorithm','tensorflow','feature extraction','natural language understanding',
-         'natural language generation','chatterbot','recurrent neural network rnn','convolutional neural network',
-         'long short term memory lstm', 'data mining','recommendation system','pytorch','caffe','scikit learn',
-         'machine learn algorithm','regularization algorithm','classifier','dimensionality reduction',
-         'ensemble learning','reinforcement learning','supervised learning','decision tree algorithm',
-         'bayesian','unsupervised learning','semi supervised learning']
+TO_EXCLUDE = {'approach', 'application'}
 
 if __name__ == '__main__':
 
-    urls = ['https://medium.com/s/story/spotifys-discover-weekly-how-machine-learning-finds-your-new-music-19a41ab76efe',
-            'https://en.wikipedia.org/wiki/Support_vector_machine',
-            'https://blog.openai.com/language-unsupervised/',
-            'https://www.analyticsvidhya.com/blog/2018/10/introduction-neural-networks-deep-learning/']
+    urls_tags = {
+        'https://medium.com/s/story/spotifys-discover-weekly-how-machine-learning-finds-your-new-music-19a41ab76efe': None,
+        'https://blog.openai.com/language-unsupervised/': None}
 
     db = DBInterface(dbname='postgres', user='postgres')
     tags = db.fetchall(GET_ALL_TAGS_NAMES_CMD)
-    links = db.fetchall(GET_ALL_LINKS_CMD)
 
-    for url in urls:
-        extractor = Extractor(url=url)
+    tagger = Tagger(tags=tags, to_exclude=TO_EXCLUDE, ngrams=NGRAMS, window_width=WINDOW_WIDTH)
 
-        extractor.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
+    for url in urls_tags.keys():
+        urls_tags[url] = tagger(url=url)
 
-        keyphrases = extractor.extract_keyphrases(algorithm=sgrank, ngrams=(1, 2, 3), window_width=1200)
-
-        categorizer = Categorizer(tags=tags, keyphrases=keyphrases, links=links)
-
-        categorizer.match(threshold=0.9)
-
-        categorizer.categorize(depth=DEPTH, macro_ctg=macro, micro_ctg=micro)
-
-        print('Article:\n{}\n'.format(url))
-        print('All matches:\n {}\n'.format(categorizer.matches))
-        print('All possible categories in depth {}:\n {}\n'.format(DEPTH, categorizer.categories))
-        print('Macro categories provided by Vitaliy:\n {}\n'.format(categorizer.macro_ctg))
-        print('Micro categories provided by Vitaliy:\n {}\n'.format(categorizer.micro_ctg))
-        print('\n\n\n')
-
+    print(urls_tags)

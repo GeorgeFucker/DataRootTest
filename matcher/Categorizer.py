@@ -1,4 +1,5 @@
 from textacy import similarity
+from functools import reduce
 
 class Categorizer:
 
@@ -68,6 +69,20 @@ class Categorizer:
                 if d > threshold:
                     self.matches.append((tag, d))
 
+
+        matches_no_rep = set()
+        for match in self.matches:
+            match_set = set()
+            match_set.add(match)
+
+            for match_to_match in self.matches:
+                d = self.distance(match[0], match_to_match[0])
+                if d > threshold:
+                    match_set.add(match_to_match)
+            match = reduce(lambda x, y: x if x[1] > y[1] else y, match_set)
+            matches_no_rep.add(match)
+
+        self.matches = matches_no_rep
 
     def categorize(self, depth=2, macro_ctg=None, micro_ctg=None):
         """ Find all parents and create possible categories """
