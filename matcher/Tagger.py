@@ -11,15 +11,17 @@ from nltk.corpus import stopwords
 from textacy import similarity
 from functools import reduce
 from textstat.textstat import textstat
+
+import sumy.summarizers as sum
 from sumy.parsers.html import HtmlParser
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lex_rank import LexRankSummarizer as Summarizer1
-# from sumy.summarizers.text_rank import TextRankSummarizer as Summarizer2
-# from sumy.summarizers.luhn import LuhnSummarizer as Summarizer3
-# from sumy.summarizers.lsa import LsaSummarizer as Summarizer4
-# from sumy.summarizers.sum_basic import SumBasicSummarizer as Summarizer5
-# from sumy.summarizers.kl import KLSummarizer as Summarizer6
+from sumy.summarizers.lex_rank import LexRankSummarizer
+from sumy.summarizers.text_rank import TextRankSummarizer
+from sumy.summarizers.luhn import LuhnSummarizer
+from sumy.summarizers.lsa import LsaSummarizer
+from sumy.summarizers.sum_basic import SumBasicSummarizer
+from sumy.summarizers.kl import KLSummarizer
 from sumy.nlp.stemmers import Stemmer
 from sumy.utils import get_stop_words
 
@@ -35,7 +37,7 @@ class Tagger:
     LANGUAGE = "english"
     SENTENCES_COUNT = 4
 
-    def __init__(self, tags, to_proprocess=True, algorithm='sgrank', to_exclude=None, **kwargs):
+    def __init__(self, tags, to_preprocess=True, algorithm='sgrank', to_exclude=None, **kwargs):
         """ Initialize with given parameters """
 
         if tags:
@@ -45,11 +47,13 @@ class Tagger:
             self.__id_to_tag = {}
             self.tags = set()
 
-        self.__to_preprocess = to_proprocess
+        self.__to_preprocess = to_preprocess
         self.__algorithm = algorithm
         self.__algorithm_params = kwargs
 
+        self.url = None
         self.text = None
+        self.img_count = 0
         self.keyphrases = []
         self.matches = set()
         self.to_exclude = to_exclude
@@ -61,28 +65,41 @@ class Tagger:
             return None
 
         # Parse text if given url
-        self.text = self.parse(url) if url else text
+        if url:
+            self.parse(url)
+        elif text:
+            self.text = text
 
         # Preprocess text if it should
         if self.__to_preprocess:
-            self.text = self.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
+            self.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
 
         # Get keyphrases
-        self.keyphrases = self.extract_keyphrases(algorithm=self.__algorithm, **self.__algorithm_params)
+        self.extract_keyphrases(algorithm=self.__algorithm, **self.__algorithm_params)
 
         # Find matches in our set of tags -> get set of text tags
-        self.matches = self.match(distance=distance, threshold=threshold, no_rep=no_rep, **kwargs)
+        self.match(distance=distance, threshold=threshold, no_rep=no_rep, **kwargs)
 
         return self.matches
 
     def parse(self, url):
         """ Get text from url """
 
-        req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        webpage = urlopen(req).read()
-        soup = bs4.BeautifulSoup(webpage, 'html.parser')
-        text = soup.findAll(text=True)
-        return text
+        try:
+            req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            webpage = urlopen(req).read()
+        except:
+            print('Something wrong')
+        soup = BeautifulSoup(webpage, 'html.parser')
+        # Kill all scripts and style elements
+        for script in soup(['script', 'style']):
+            script.extract()
+
+        self.text_for_estimation = soup.findAll(text=True)
+
+        self.url = url
+        self.text = soup.get_text()
+        self.img_count = len(soup.find_all('img'))
 
     def preprocess(self, lowercase=False, no_punct=False, no_urls=False, no_stop_words=False):
         """ Preprocess text for matching """
@@ -105,7 +122,7 @@ class Tagger:
             stop_words = set(stopwords.words('english'))
             word_tokens = nltk.word_tokenize(self.text)
             filtered_sentence = [w for w in word_tokens if w not in stop_words]
-            return ' '.join(filtered_sentence)
+            self.text = ' '.join(filtered_sentence)
 
     def extract_keyphrases(self, algorithm, **kwargs):
         """ Method for extracting keyphrases from text
@@ -118,7 +135,7 @@ class Tagger:
             algorithm = eval('tkt.{}'.format(algorithm))
 
         doc = textacy.Doc(self.text, lang='en')
-        return list(algorithm(doc, **kwargs))
+        self.keyphrases = list(algorithm(doc, **kwargs))
 
     def _set_tags(self, tags):
         """ Create dictionaries with tag_name : id and id : tag_name and tags
@@ -175,10 +192,12 @@ class Tagger:
         if self.to_exclude:
             matches = {(match, p) for match, p in matches if match not in self.to_exclude}
 
-        return matches
+        self.matches = matches
 
     ### Readtime and Readability estimation part
     def _is_visible(self, element):
+        """ Return visibility of the element """
+
         if element.parent.name in ['style', 'script', '[document]', 'head', 'title']:
             return False
         elif isinstance(element, bs4.element.Comment):
@@ -187,27 +206,25 @@ class Tagger:
             return False
         return True
 
-    # filter all unimportant data
-    def _filter_visible_text(self, page_texts):
-        return filter(self._is_visible, page_texts)
+    def _filter_visible_text(self):
+        """ Filter all unimportant data """
 
-    def _count_words_in_text_through_average_word_length(self, text_list, word_length):
+        return filter(self._is_visible, self.text_for_estimation)
+
+    def _count_words(self, text_list, word_length):
+        """ Count word numbers int text"""
+
         total_words = 0
         for current_text in text_list:
             total_words += len(current_text) / word_length
         return total_words
 
-    def _get_img_count(self, url):
-        response = requests.get(url)
-        soup = bs4.BeautifulSoup(response.content, 'html.parser')
-        return len(soup.find_all('img'))
+    def estimate(self):
+        """ Estimate readtime and readability"""
 
-    # actual estimation
-    def estimate_readtime_and_readability(self, url):
-        filtered_text = self._filter_visible_text(self.text)
-        total_words = self._count_words_in_text_through_average_word_length(filtered_text, self.WORD_LENGTH)
-        img_count = self._get_img_count(url)
-        text_readability = textstat.flesch_reading_ease(' '.join(list(self._filter_visible_text(self.text))))
+        filtered_text = self._filter_visible_text()
+        total_words = self._count_words(filtered_text, self.WORD_LENGTH)
+        text_readability = textstat.flesch_reading_ease(' '.join(list(self._filter_visible_text())))
         if text_readability > 70.0:
             readability_res = 'this is an easy to read article'
         elif 70.0 > text_readability > 60.0:
@@ -218,14 +235,25 @@ class Tagger:
             readability_res = 'this is an article for student with strong knowledge of basics'
         elif text_readability < 30.0:
             readability_res = 'this is a relatively hard to read article'
-        return round((total_words / self.WPM) + img_count * self.IMG_WEIGHT), readability_res
+        return round((total_words / self.WPM) + self.img_count * self.IMG_WEIGHT), readability_res
 
-    ### Summarizer part
-    def summarize(self, url, func=Summarizer1):
-        parser = HtmlParser.from_url(url, Tokenizer(self.LANGUAGE))
+    def summarize(self, method='lex_rank'):
+        """ Summarize text """
+
+        if isinstance(method, str):
+            method_name = method.split(sep='_')
+            method_name = list(map(lambda x: x[0].upper() + x[1:], method_name))
+            method_name = ''.join(method_name)
+            method_name += 'Summarizer'
+            method = eval('sum.{}.{}'.format(method, method_name))
+
+        summary = ''
+        parser = HtmlParser.from_url(self.url, Tokenizer(self.LANGUAGE))
         stemmer = Stemmer(self.LANGUAGE)
-        summarizer = func(stemmer)
+        summarizer = method(stemmer)
         summarizer.stop_words = get_stop_words(self.LANGUAGE)
         for sentence in summarizer(parser.document, self.SENTENCES_COUNT):
-            print(sentence)
+            summary += str(sentence) + '\n'
+
+        return summary
 
