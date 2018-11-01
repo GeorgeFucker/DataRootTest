@@ -22,5 +22,7 @@ if __name__ == '__main__':
 
     for url in urls_tags.keys():
         urls_tags[url] = tagger(url=url)
+        tagger.text = tagger.parse(url)
+        print('{}: {}'.format(url, tagger.summarize(url)))
 
     print(urls_tags)
