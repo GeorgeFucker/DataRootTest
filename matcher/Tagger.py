@@ -227,17 +227,18 @@ class Tagger:
         text_readability = textstat.flesch_reading_ease(' '.join(list(self._filter_visible_text())))
         if text_readability > 70.0:
             readability_res = 'this is an easy to read article'
-        elif 70.0 > text_readability > 60.0:
+        elif text_readability < 70.0 and text_readability > 60.0:
             readability_res = 'this article is easy to read even for a beginner'
-        elif 60.0 > text_readability > 50.0:
-            readability_res = 'this is an article for student with some knowledge'
-        elif 50.0 > text_readability > 30.0:
+        elif text_readability < 60.0 and text_readability > 40.0:
+            readability_res = 'this is an article for student with some knowledge of basics'
+        elif text_readability < 40.0 and text_readability > 20.0:
+            print(text_readability)
             readability_res = 'this is an article for student with strong knowledge of basics'
-        elif text_readability < 30.0:
+        elif text_readability < 20.0:
             readability_res = 'this is a relatively hard to read article'
         return round((total_words / self.WPM) + self.img_count * self.IMG_WEIGHT), readability_res
 
-    def summarize(self, method='lex_rank'):
+    def summarize(self, method='luhn'):
         """ Summarize text """
 
         if isinstance(method, str):

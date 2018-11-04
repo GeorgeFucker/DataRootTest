@@ -1,11 +1,20 @@
+from __future__ import absolute_import
+from __future__ import division, print_function, unicode_literals
+from sumy.parsers.html import HtmlParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.luhn import LuhnSummarizer as Summarizer3
+from sumy.nlp.stemmers import Stemmer
+from sumy.utils import get_stop_words
 import bs4
 from urllib.request import Request, urlopen
 import requests
 from textstat.textstat import textstat
 # Words per minute
-WPM = 266
+WPM = 220
 WORD_LENGTH = 5
 IMG_WEIGHT = 0.15
+LANGUAGE = "english"
+SENTENCES_COUNT = 4
 
 # extracting all text
 def extract_text(url):
@@ -50,16 +59,21 @@ def estimate_reading_time_and_readability(url):
         readability_res= 'this is an easy to read article'
     elif text_readability<70.0 and text_readability>60.0:
         readability_res = 'this article is easy to read even for a beginner'
-    elif text_readability<60.0 and text_readability>50.0:
-        readability_res = 'this is an article for student with some knowledge'
-    elif text_readability<50.0 and text_readability>30.0:
+    elif text_readability<60.0 and text_readability>40.0:
+        readability_res = 'this is an article for student with some knowledge of basics'
+    elif text_readability<40.0 and text_readability>20.0:
+        print(text_readability)
         readability_res = 'this is an article for student with strong knowledge of basics'
-    elif text_readability<30.0:
+    elif text_readability<20.0:
         readability_res = 'this is a relatively hard to read article'
     return round((total_words/WPM)+imgCounnt*IMG_WEIGHT),readability_res
 
-# example = estimate_reading_time_and_readability("https://towardsdatascience.com/an-introduction-to-bayesian-inference-in-pystan-c27078e58d53")
-# print(example[1])
-# print ('{} minutes to read'.format(example[0]))
-
-
+#summarization
+def get_summ(url,func=Summarizer3):
+    parser = HtmlParser.from_url(url, Tokenizer(LANGUAGE))
+    stemmer = Stemmer(LANGUAGE)
+    summarizer = func(stemmer)
+    summarizer.stop_words = get_stop_words(LANGUAGE)
+    sumy=summarizer(parser.document, SENTENCES_COUNT)
+    result = [str(i) for i in list(sumy)]
+    return result
