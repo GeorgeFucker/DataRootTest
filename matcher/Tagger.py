@@ -236,7 +236,7 @@ class Tagger:
             readability_res = 'this is an article for student with strong knowledge of basics'
         elif text_readability < 20.0:
             readability_res = 'this is a relatively hard to read article'
-        return round((total_words / self.WPM) + self.imgCounnt * self.IMG_WEIGHT), readability_res
+        return round((total_words / self.WPM) + self.img_count * self.IMG_WEIGHT), readability_res
 
     def summarize(self, method='luhn'):
         """ Summarize text """
