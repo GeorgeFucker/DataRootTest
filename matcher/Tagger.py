@@ -237,7 +237,7 @@ class Tagger:
             readability_res = 'this is a relatively hard to read article'
         return round((total_words / self.WPM) + self.img_count * self.IMG_WEIGHT), readability_res
 
-    def summarize(self, method='lex_rank'):
+    def summarize(self, method='luhn'):
         """ Summarize text """
 
         if isinstance(method, str):
