@@ -53,7 +53,10 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
+
 # Editor-based Rest Client
 .idea/httpRequests
 
 *.pyc
+
+.idea/misc.xml
