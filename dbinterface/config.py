@@ -5,3 +5,4 @@ HOST = 'ec2-50-17-206-214.compute-1.amazonaws.com'
 PORT = '5432'
 NUMTHREADS = 20
 CONNECTIONTIMEOUT = 10000
+LIMIT = 2

@@ -2,25 +2,12 @@ import pprint
 import json
 
 from matcher import Tagger
+from matcher.config import *
 from dbinterface import DBInterface
-from dbinterface.consts import *
-
-LIMIT = 10
-
-GET_TAGS_CMD = 'SELECT * FROM public.tags;'
-GET_ARTICLES_CMD = 'SELECT * FROM public."Articles" ' \
-                   'LIMIT {};'.format(LIMIT)
-
-NGRAMS = (1, 2, 3)
-WINDOW_WIDTH = 1200
-
-TO_EXCLUDE = {'approach', 'application'}
+from dbinterface.commands import *
+from dbinterface.config import *
 
 if __name__ == '__main__':
-
-    urls_tags = {
-        'https://medium.com/s/story/spotifys-discover-weekly-how-machine-learning-finds-your-new-music-19a41ab76efe': {},
-        'https://blog.openai.com/language-unsupervised/': {}}
 
     # Initialize DBInterface with appropriate databases
     db = DBInterface(dbname=DBNAME, user=USER, password=PASSWORD, host=HOST, port=PORT)
@@ -34,19 +21,32 @@ if __name__ == '__main__':
 
     # Execute command to get articles
     db.execute(GET_ARTICLES_CMD)
+    articles = db.fetchall()
 
-    for _ in range(LIMIT):
+    for article in articles:
         # Get all available data about article
-        id, source_id, url, status, html, pub_date, content = db.fetchone()
+        id, source_id, url, status, html, pub_date, content = article
 
         # Transform json-string to dictionary
         content = json.loads(content)
 
-        tagger.parse(url)
+        # Extract info about article
+        tagger.parse(html=html)
         content["summary"] = tagger.summarize()
         content["timeToRead"], _ = tagger.estimate()
-        tags_from_text = tagger(url=url)
+        tags_from_text = [tag for tag, p in tagger(html=html)]
         if content["tags"]:
-            content["tags"].append(tags_from_text)
+            content["tags"].extend(tags_from_text)
         else:
             content["tags"] = tags_from_text
+        content = json.dumps(content)
+
+        # Update database
+        UPDATE_ARTICLE_CMD = "UPDATE public.\"Articles\"" \
+                             "SET articles_status = 'Updated', articles_content = '{}' " \
+                             "WHERE articles_id = {}".format(content, id)
+        db.execute(UPDATE_ARTICLE_CMD)
+        print('{} added.'.format(id))
+
+    db.commit()
+    db.disconnect()

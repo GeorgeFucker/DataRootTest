@@ -51,6 +51,7 @@ class Tagger:
         self.__algorithm = algorithm
         self.__algorithm_params = kwargs
 
+        self.html = None
         self.url = None
         self.text = None
         self.img_count = 0
@@ -58,17 +59,19 @@ class Tagger:
         self.matches = set()
         self.to_exclude = to_exclude
 
-    def __call__(self, text=None, url=None, distance='hamming', threshold=0.7, no_rep=True, **kwargs):
+    def __call__(self, text=None, url=None, html=None, distance='hamming', threshold=0.7, no_rep=True, **kwargs):
         """ Create tags based on url or text """
 
-        if not (text or url):
+        if not (text or url or html):
             return None
 
-        # Parse text if given url
+        # Parse text if given url or html
         if url:
-            self.parse(url)
+            self.parse(url=url)
         elif text:
             self.text = text
+        elif html:
+            self.parse(html=html)
 
         # Preprocess text if it should
         if self.__to_preprocess:
@@ -82,15 +85,18 @@ class Tagger:
 
         return self.matches
 
-    def parse(self, url):
+    def parse(self, url=None, html=None):
         """ Get text from url """
 
-        try:
-            req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            webpage = urlopen(req).read()
-        except:
-            print('Something wrong')
-        soup = BeautifulSoup(webpage, 'html.parser')
+        if url:
+            try:
+                req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                html = urlopen(req).read()
+            except:
+                print('Something wrong')
+
+        self.html = html
+        soup = BeautifulSoup(html, 'html.parser')
         # Kill all scripts and style elements
         for script in soup(['script', 'style']):
             script.extract()
@@ -237,7 +243,7 @@ class Tagger:
             readability_res = 'this is a relatively hard to read article'
         return round((total_words / self.WPM) + self.img_count * self.IMG_WEIGHT), readability_res
 
-    def summarize(self, method='lex_rank'):
+    def summarize(self, method='luhn'):
         """ Summarize text """
 
         if isinstance(method, str):
@@ -248,7 +254,10 @@ class Tagger:
             method = eval('sum.{}.{}'.format(method, method_name))
 
         summary = ''
-        parser = HtmlParser.from_url(self.url, Tokenizer(self.LANGUAGE))
+        if self.url:
+            parser = HtmlParser.from_url(self.url, Tokenizer(self.LANGUAGE))
+        elif self.html:
+            parser = HtmlParser(self.html, Tokenizer(self.LANGUAGE))
         stemmer = Stemmer(self.LANGUAGE)
         summarizer = method(stemmer)
         summarizer.stop_words = get_stop_words(self.LANGUAGE)
