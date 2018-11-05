@@ -2,20 +2,23 @@ import psycopg2
 
 class DBInterface:
 
-    def __init__(self, dbname=None, user=None):
+    def __init__(self, dbname=None, user=None, password=None, host=None, port=5432):
         """ Initiate Matcher with dbname and username """
 
-        if dbname and user:
-            self.conn = self.connect(dbname, user)
-            self.cursor = self.open_cursor()
+        self.conn = self.connect(dbname, user, password, host, port)
+        self.cursor = self.open_cursor()
 
-    def connect(self, dbname, user):
+    def connect(self, dbname, user, password, host, port):
         """ Create connection to db """
 
         self.dbname = dbname
         self.user = user
+        self.host = host
+        self.port = port
 
-        return psycopg2.connect(dbname=dbname, user=user)
+        self.__password = password
+
+        return psycopg2.connect(dbname=dbname, user=user, password=password, host=host, port=port)
 
     def open_cursor(self):
         """ Create cursor """
@@ -27,23 +30,20 @@ class DBInterface:
 
         self.cursor.execute(cmd)
 
-    def fetchall(self, cmd):
+    def fetchall(self):
         """ Fetch all values created by command """
 
-        self.execute(cmd=cmd)
         return self.cursor.fetchall()
 
-    def fetchone(self, cmd):
+    def fetchone(self):
         """ Yield one value created by command"""
 
-        self.execute(cmd)
-        yield self.cursor.fetchone()
+        return self.cursor.fetchone()
 
-    def fetchmany(self, cmd, size):
+    def fetchmany(self, size):
         """ Yield 'size' values created by command """
 
-        self.execute(cmd)
-        yield self.cursor.fetchmany(size)
+        return self.cursor.fetchmany(size)
 
     def commit(self):
         """ Commit changes in db """
