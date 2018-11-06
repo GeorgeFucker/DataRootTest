@@ -1,7 +1,5 @@
 import logging
 
-from .Extracter import Extractor
-from .Categorizer import Categorizer
 from .Tagger import Tagger
 from .config import *
 
