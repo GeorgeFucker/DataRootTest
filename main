@@ -39,14 +39,18 @@ if __name__ == '__main__':
             content["tags"].extend(tags_from_text)
         else:
             content["tags"] = tags_from_text
-        content = json.dumps(content)
+
+        # Handle apostrophes
+
+        content = json.dumps(content).replace("'", "`")
 
         # Update database
         UPDATE_ARTICLE_CMD = "UPDATE public.\"Articles\"" \
                              "SET articles_status = 'Updated', articles_content = '{}' " \
                              "WHERE articles_id = {}".format(content, id)
         db.execute(UPDATE_ARTICLE_CMD)
-        print('{} added.'.format(id))
+
+        print('Id {} added.'.format(id))
 
     db.commit()
     db.disconnect()

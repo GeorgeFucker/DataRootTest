@@ -54,6 +54,7 @@ class Tagger:
         self.html = None
         self.url = None
         self.text = None
+        self.text_for_estimation = None
         self.img_count = 0
         self.keyphrases = []
         self.matches = set()
@@ -107,6 +108,14 @@ class Tagger:
         self.text = soup.get_text()
         self.img_count = len(soup.find_all('img'))
 
+    def _delete_stop_words(self, text):
+        """ Delete stop words """
+
+        stop_words = set(stopwords.words('english'))
+        word_tokens = nltk.word_tokenize(text)
+        filtered_sentence = [w for w in word_tokens if w not in stop_words]
+        return ' '.join(filtered_sentence)
+
     def preprocess(self, lowercase=False, no_punct=False, no_urls=False, no_stop_words=False):
         """ Preprocess text for matching """
 
@@ -125,10 +134,7 @@ class Tagger:
 
         # Handle stop words
         if no_stop_words:
-            stop_words = set(stopwords.words('english'))
-            word_tokens = nltk.word_tokenize(self.text)
-            filtered_sentence = [w for w in word_tokens if w not in stop_words]
-            self.text = ' '.join(filtered_sentence)
+            self.text = self._delete_stop_words(self.text)
 
     def extract_keyphrases(self, algorithm, **kwargs):
         """ Method for extracting keyphrases from text
@@ -165,6 +171,28 @@ class Tagger:
 
         return distance(str1, str2, **kwargs)
 
+    def _delete_repetitions(self, matches, threshold=0.9):
+        """ Delete repetitions in matches """
+
+        matches_no_rep = set()
+        for match in matches:
+            match_set = set()
+            match_set.add(match)
+
+            for match_to_match in matches:
+                d = self._distance(match[0], match_to_match[0])
+                if d > threshold:
+                    match_set.add(match_to_match)
+            match = reduce(lambda x, y: x if x[1] > y[1] else y, match_set)
+            matches_no_rep.add(match)
+
+        return matches_no_rep
+
+    def _exclude_words(self, matches):
+        """ Delete words that was pointed to delete """
+
+        return {(match, p) for match, p in matches if match not in self.to_exclude}
+
     def match(self, distance='hamming', threshold=0.7, no_rep=True, **kwargs):
         """ Match all tags that are similar
             **kwargs -> parameters for similarity function
@@ -181,26 +209,14 @@ class Tagger:
                     matches.append((tag, d))
 
         if no_rep:
-            matches_no_rep = set()
-            for match in matches:
-                match_set = set()
-                match_set.add(match)
-
-                for match_to_match in matches:
-                    d = self._distance(match[0], match_to_match[0])
-                    if d > threshold:
-                        match_set.add(match_to_match)
-                match = reduce(lambda x, y: x if x[1] > y[1] else y, match_set)
-                matches_no_rep.add(match)
-
-            matches = matches_no_rep
+            matches = self._delete_repetitions(matches)
 
         if self.to_exclude:
-            matches = {(match, p) for match, p in matches if match not in self.to_exclude}
+            matches = self._exclude_words(matches)
 
         self.matches = matches
 
-    ### Readtime and Readability estimation part
+    # Readtime and Readability estimation part
     def _is_visible(self, element):
         """ Return visibility of the element """
 
@@ -235,25 +251,29 @@ class Tagger:
             readability_res = 'this is an easy to read article'
         elif 70.0 > text_readability > 60.0:
             readability_res = 'this article is easy to read even for a beginner'
-        elif 60.0 > text_readability > 50.0:
+        elif 60.0 > text_readability > 40.0:
             readability_res = 'this is an article for student with some knowledge'
-        elif 50.0 > text_readability > 30.0:
+        elif 40.0 > text_readability > 20.0:
             readability_res = 'this is an article for student with strong knowledge of basics'
-        elif text_readability < 30.0:
+        elif text_readability < 20.0:
             readability_res = 'this is a relatively hard to read article'
         return round((total_words / self.WPM) + self.img_count * self.IMG_WEIGHT), readability_res
 
-    def summarize(self, method='luhn'):
-        """ Summarize text """
+    def _check_method(self, method):
+        """ Check if the method is str or func """
 
         if isinstance(method, str):
             method_name = method.split(sep='_')
             method_name = list(map(lambda x: x[0].upper() + x[1:], method_name))
             method_name = ''.join(method_name)
             method_name += 'Summarizer'
-            method = eval('sum.{}.{}'.format(method, method_name))
+            return eval('sum.{}.{}'.format(method, method_name))
 
-        summary = ''
+    def summarize(self, method='luhn'):
+        """ Summarize text """
+
+        method = self._check_method(method)
+
         if self.url:
             parser = HtmlParser.from_url(self.url, Tokenizer(self.LANGUAGE))
         elif self.html:
@@ -261,8 +281,8 @@ class Tagger:
         stemmer = Stemmer(self.LANGUAGE)
         summarizer = method(stemmer)
         summarizer.stop_words = get_stop_words(self.LANGUAGE)
-        for sentence in summarizer(parser.document, self.SENTENCES_COUNT):
-            summary += str(sentence) + '\n'
+        sumy = summarizer(parser.document, self.SENTENCES_COUNT)
+        summary = ''.join([str(i) for i in list(sumy)])
 
         return summary
 
