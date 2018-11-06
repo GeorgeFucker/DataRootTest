@@ -30,7 +30,7 @@ class Tagger:
     """ Tagger class """
 
     # Words per minute
-    WPM = 266
+    WPM = 220
     WORD_LENGTH = 5
     IMG_WEIGHT = 0.15
 
