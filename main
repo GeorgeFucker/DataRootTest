@@ -31,7 +31,7 @@ if __name__ == '__main__':
             print('Going to sleep\n')
             time.sleep(60 * 60 / 2)
 
-        for article in articles[1:]:
+        for article in articles:
             # Get all available data about article
             id, source_id, url, status, html, pub_date, content = article
 

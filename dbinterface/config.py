@@ -7,7 +7,7 @@ NUMTHREADS = 20
 CONNECTIONTIMEOUT = 10000
 LIMIT = 10
 STATUS = 'Updated'
-OMIT = 'Arxiv'
+OMIT = ('Arxiv', 'PapersWithCode', 'GitHub')
 
 URL = 'jdbc:postgresql://ec2-23-23-80-20.compute-1.amazonaws.com:5432/dcqkgll1u8ua9g?sslmode=require'
 DRIVER = '"org.postgresql.Driver"'
