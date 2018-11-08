@@ -60,29 +60,35 @@ class Tagger:
         self.matches = set()
         self.to_exclude = to_exclude
 
-    def __call__(self, text=None, url=None, html=None, distance='hamming', threshold=0.7, no_rep=True, **kwargs):
+    def __call__(self, text=None, url=None, html=None, distance='hamming',
+                 threshold=0.7, no_rep=True, matches=None, **kwargs):
         """ Create tags based on url or text """
 
         if not (text or url or html):
             return None
 
         # Parse text if given url or html
+        print('--> Parsing has started...')
         if url:
             self.parse(url=url)
         elif text:
             self.text = text
         elif html:
             self.parse(html=html)
-
+        print('--> Parsing has done.')
         # Preprocess text if it should
+        print('--> Preprocessing has started...')
         if self.__to_preprocess:
             self.preprocess(lowercase=True, no_punct=True, no_urls=True, no_stop_words=True)
-
+        print('--> Preprocessing has done.')
         # Get keyphrases
+        print('--> Extraction has started...')
         self.extract_keyphrases(algorithm=self.__algorithm, **self.__algorithm_params)
-
+        print('--> Extraction has done.')
         # Find matches in our set of tags -> get set of text tags
-        self.match(distance=distance, threshold=threshold, no_rep=no_rep, **kwargs)
+        print('--> Matching has started...')
+        self.match(distance=distance, threshold=threshold, no_rep=no_rep, matches=matches, **kwargs)
+        print('--> Matching has done.')
 
         return self.matches
 
@@ -193,20 +199,29 @@ class Tagger:
 
         return {(match, p) for match, p in matches if match not in self.to_exclude}
 
-    def match(self, distance='hamming', threshold=0.7, no_rep=True, **kwargs):
+    def match(self, distance='hamming', threshold=0.7, no_rep=True, matches=None, **kwargs):
         """ Match all tags that are similar
             **kwargs -> parameters for similarity function
         """
 
-        matches = []
+        if matches:
+            matches = [(match, 1) for match in matches]
+        else:
+            matches = []
 
-        for keyphrase in self.keyphrases:
-            for tag in self.tags:
-                if not tag:
-                    continue
-                d = self._distance(keyphrase[0], tag, distance=distance, **kwargs)
-                if d > threshold:
-                    matches.append((tag, d))
+        while threshold >= 0:
+            for keyphrase in self.keyphrases:
+                for tag in self.tags:
+                    if not tag:
+                        continue
+                    d = self._distance(keyphrase[0], tag, distance=distance, **kwargs)
+                    if d > threshold:
+                        matches.append((tag, d))
+            if matches:
+                print('All matches found')
+                break
+
+            threshold -= 0.1
 
         if no_rep:
             matches = self._delete_repetitions(matches)

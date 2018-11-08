@@ -1,5 +1,5 @@
-import pprint
 import json
+import time
 
 from matcher import Tagger
 from matcher.config import *
@@ -19,38 +19,56 @@ if __name__ == '__main__':
     # Initialize Tagger with parameters
     tagger = Tagger(tags=tags, to_exclude=TO_EXCLUDE, ngrams=NGRAMS, window_width=WINDOW_WIDTH)
 
-    # Execute command to get articles
-    db.execute(GET_ARTICLES_CMD)
-    articles = db.fetchall()
+    while True:
 
-    for article in articles:
-        # Get all available data about article
-        id, source_id, url, status, html, pub_date, content = article
+        db = DBInterface(dbname=DBNAME, user=USER, password=PASSWORD, host=HOST, port=PORT)
 
-        # Transform json-string to dictionary
-        content = json.loads(content)
+        # Execute command to get articles
+        db.execute(GET_ARTICLES_CMD)
+        articles = db.fetchall()
 
-        # Extract info about article
-        tagger.parse(html=html)
-        content["summary"] = tagger.summarize()
-        content["timeToRead"], _ = tagger.estimate()
-        tags_from_text = [tag for tag, p in tagger(html=html)]
-        if content["tags"]:
-            content["tags"].extend(tags_from_text)
-        else:
-            content["tags"] = tags_from_text
+        if not articles:
+            print('Going to sleep\n')
+            time.sleep(60 * 60 / 2)
 
-        # Handle apostrophes
+        for article in articles[1:]:
+            # Get all available data about article
+            id, source_id, url, status, html, pub_date, content = article
 
-        content = json.dumps(content).replace("'", "`")
+            # Transform json-string to dictionary
+            content = json.loads(content)
 
-        # Update database
-        UPDATE_ARTICLE_CMD = "UPDATE public.\"Articles\"" \
-                             "SET articles_status = 'Updated', articles_content = '{}' " \
-                             "WHERE articles_id = {}".format(content, id)
-        db.execute(UPDATE_ARTICLE_CMD)
+            print('_' * 45)
+            print('Id {} processing started...\n'.format(id))
 
-        print('Id {} added.'.format(id))
+            # Extract info about article
+            print('Parsing has started...')
+            tagger.parse(html=html)
+            print('Parsing has done.')
 
-    db.commit()
-    db.disconnect()
+            print('Summarization has started...')
+            content["summary"] = tagger.summarize()
+            print('Summarization has done.')
+
+            print('Estimation has started...')
+            content["timeToRead"], content["readability"] = tagger.estimate()
+            print('Estimation has done.')
+
+            print('Tagging has started...')
+            tags_from_text = [tag for tag, p in tagger(html=html, matches=content["tags"])]
+            print('Tagging has done.')
+
+            # Handle apostrophes
+            content = json.dumps(content).replace("'", "`")
+
+            # Update database
+            UPDATE_ARTICLE_CMD = "UPDATE public.\"Articles\"" \
+                                 "SET articles_status = 'Updated', articles_content = '{}' " \
+                                 "WHERE articles_id = {}".format(content, id)
+            db.execute(UPDATE_ARTICLE_CMD)
+
+            print('\nId {} updated.'.format(id))
+            print('_' * 45 + '\n')
+
+        db.commit()
+        db.disconnect()
